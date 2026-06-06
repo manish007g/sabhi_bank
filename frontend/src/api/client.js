@@ -2,8 +2,9 @@
 
 import axios from 'axios';
 
-// Base URL points to the gateway service on the host machine
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const defaultHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const defaultProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http';
+const API_BASE = import.meta.env.VITE_API_BASE || `${defaultProtocol}://${defaultHost}:8000`;
 
 const client = axios.create({
   baseURL: API_BASE,
