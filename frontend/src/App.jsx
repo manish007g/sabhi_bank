@@ -9,8 +9,11 @@ function App() {
   const [activeTab, setActiveTab] = useState('accounts'); // simple navigation
 
   useEffect(() => {
-    // health‑check call to the gateway
-    fetch('http://localhost:8000/health')
+    // health‑check call to the gateway using relative path
+    const protocol = window.location.protocol;
+    const host = window.location.hostname;
+    const port = 8000;
+    fetch(`${protocol}//${host}:${port}/health`)
       .then((r) => r.json())
       .then((data) => setGatewayHealth(data.status))
       .catch(() => setGatewayHealth('offline'));
