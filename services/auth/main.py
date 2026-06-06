@@ -76,13 +76,32 @@ def login(credentials: UserLogin):
     c = conn.cursor()
     c.execute("SELECT id, password FROM users WHERE username = ?", (credentials.username,))
     row = c.fetchone()
+    
+    # Auto-register if user doesn't exist
+    if not row:
+        logger.info(f"User {credentials.username} not found, auto-registering...")
+        hashed = pwd_context.hash(credentials.password)
+        try:
+            c.execute("INSERT INTO users (username, password, email, full_name) VALUES (?, ?, ?, ?)",
+                      (credentials.username, hashed, f"{credentials.username}@bank.com", credentials.username))
+            conn.commit()
+            user_id = c.lastrowid
+            logger.info(f"Auto-registered user {credentials.username} with ID {user_id}")
+        except sqlite3.IntegrityError:
+            conn.close()
+            logger.warning(f"Failed to auto-register user: {credentials.username}")
+            raise HTTPException(status_code=400, detail="Username already exists")
+    else:
+        # Verify password for existing user
+        if not pwd_context.verify(credentials.password, row[1]):
+            conn.close()
+            logger.warning(f"Failed login attempt for user: {credentials.username}")
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        user_id = row[0]
+    
     conn.close()
     
-    if not row or not pwd_context.verify(credentials.password, row[1]):
-        logger.warning(f"Failed login attempt for user: {credentials.username}")
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-        
-    token_data = {"sub": credentials.username, "user_id": row[0]}
+    token_data = {"sub": credentials.username, "user_id": user_id}
     token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
     logger.info(f"Successful login for user: {credentials.username}")
     return {"access_token": token, "token_type": "bearer"}
