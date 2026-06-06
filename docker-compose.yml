@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # Observability Stack
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: tempo
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml
+    command: -config.file=/etc/tempo/tempo.yaml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  # Backend Microservices
+  gateway:
+    build: ./services
+    container_name: gateway
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    command: python -m gateway.main
+    depends_on:
+      - auth
+      - accounts
+      - transactions
+      - cards
+      - loans
+      - fd
+      - notification
+      - audit
+      - analytics
+    restart: unless-stopped
+
+  auth:
+    build: ./services
+    container_name: auth
+    env_file:
+      - .env
+    command: python -m auth.main
+    volumes:
+      - auth-data:/data
+    restart: unless-stopped
+
+  accounts:
+    build: ./services
+    container_name: accounts
+    env_file:
+      - .env
+    command: python -m accounts.main
+    volumes:
+      - accounts-data:/data
+    restart: unless-stopped
+
+  transactions:
+    build: ./services
+    container_name: transactions
+    env_file:
+      - .env
+    command: python -m transactions.main
+    volumes:
+      - transactions-data:/data
+    restart: unless-stopped
+
+  cards:
+    build: ./services
+    container_name: cards
+    env_file:
+      - .env
+    command: python -m cards.main
+    volumes:
+      - cards-data:/data
+    restart: unless-stopped
+
+  loans:
+    build: ./services
+    container_name: loans
+    env_file:
+      - .env
+    command: python -m loans.main
+    volumes:
+      - loans-data:/data
+    restart: unless-stopped
+
+  fd:
+    build: ./services
+    container_name: fd
+    env_file:
+      - .env
+    command: python -m fd.main
+    volumes:
+      - fd-data:/data
+    restart: unless-stopped
+
+  notification:
+    build: ./services
+    container_name: notification
+    env_file:
+      - .env
+    command: python -m notification.main
+    restart: unless-stopped
+
+  audit:
+    build: ./services
+    container_name: audit
+    env_file:
+      - .env
+    command: python -m audit.main
+    volumes:
+      - audit-data:/data
+    restart: unless-stopped
+
+  analytics:
+    build: ./services
+    container_name: analytics
+    env_file:
+      - .env
+    command: python -m analytics.main
+    volumes:
+      - analytics-data:/data
+    restart: unless-stopped
+
+volumes:
+  auth-data:
+  accounts-data:
+  transactions-data:
+  cards-data:
+  loans-data:
+  fd-data:
+  audit-data:
+  analytics-data:
