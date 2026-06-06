@@ -2,8 +2,8 @@
 # Stage 1 – build the app
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci --silent
+COPY package*.json ./
+RUN npm install --silent
 COPY . .
 # Build the production bundle (Vite output goes to /app/dist)
 RUN npm run build
