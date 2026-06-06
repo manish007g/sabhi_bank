@@ -59,7 +59,7 @@ def seed_accounts(users_data):
             account_type = choice(ACCOUNT_TYPES)
             initial_deposit = choice(INITIAL_BALANCES)
             try:
-                response = requests.post(f"{ACCOUNTS_API}/accounts", json={
+                response = requests.post(f"{ACCOUNTS_API}/", json={
                     "user_id": user_id,
                     "account_type": account_type,
                     "initial_deposit": initial_deposit

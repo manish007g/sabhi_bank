@@ -52,29 +52,29 @@ async def create_transaction(req: TransactionRequest):
         # 1. Update accounts
         if req.type == "deposit":
             # Add balance
-            res = await client.post(f"{ACCOUNTS_SERVICE_URL}/accounts/{req.to_account}/adjust-balance", 
+            res = await client.post(f"{ACCOUNTS_SERVICE_URL}/{req.to_account}/adjust-balance", 
                                     json={"amount": req.amount}, headers=headers)
             if res.status_code != 200:
                 raise HTTPException(status_code=res.status_code, detail=res.text)
         elif req.type == "withdraw":
             # Subtract balance
-            res = await client.post(f"{ACCOUNTS_SERVICE_URL}/accounts/{req.from_account}/adjust-balance", 
+            res = await client.post(f"{ACCOUNTS_SERVICE_URL}/{req.from_account}/adjust-balance", 
                                     json={"amount": -req.amount}, headers=headers)
             if res.status_code != 200:
                 raise HTTPException(status_code=res.status_code, detail=res.text)
         elif req.type == "transfer":
             # Subtract from origin
-            res1 = await client.post(f"{ACCOUNTS_SERVICE_URL}/accounts/{req.from_account}/adjust-balance", 
+            res1 = await client.post(f"{ACCOUNTS_SERVICE_URL}/{req.from_account}/adjust-balance", 
                                      json={"amount": -req.amount}, headers=headers)
             if res1.status_code != 200:
                 raise HTTPException(status_code=res1.status_code, detail=res1.text)
             
             # Add to destination
-            res2 = await client.post(f"{ACCOUNTS_SERVICE_URL}/accounts/{req.to_account}/adjust-balance", 
+            res2 = await client.post(f"{ACCOUNTS_SERVICE_URL}/{req.to_account}/adjust-balance", 
                                      json={"amount": req.amount}, headers=headers)
             if res2.status_code != 200:
                 # Rollback source
-                await client.post(f"{ACCOUNTS_SERVICE_URL}/accounts/{req.from_account}/adjust-balance", 
+                await client.post(f"{ACCOUNTS_SERVICE_URL}/{req.from_account}/adjust-balance", 
                                   json={"amount": req.amount}, headers=headers)
                 raise HTTPException(status_code=res2.status_code, detail="Failed transfer to destination account; rolled back origin.")
         else:

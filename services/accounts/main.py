@@ -35,7 +35,7 @@ class CreateAccountRequest(BaseModel):
 class BalanceUpdateRequest(BaseModel):
     amount: float
 
-@app.post("/accounts")
+@app.post("/")
 def create_account(req: CreateAccountRequest):
     logger.info(f"Creating account for user {req.user_id} with type {req.account_type}")
     import random
@@ -50,7 +50,7 @@ def create_account(req: CreateAccountRequest):
     logger.info(f"Created account {account_num} for user {req.user_id}")
     return {"account_number": account_num, "balance": req.initial_deposit, "account_type": req.account_type}
 
-@app.get("/accounts/user/{user_id}")
+@app.get("/user/{user_id}")
 def get_user_accounts(user_id: int):
     logger.info(f"Fetching accounts for user {user_id}")
     conn = sqlite3.connect(DB_FILE)
@@ -62,7 +62,7 @@ def get_user_accounts(user_id: int):
     accounts = [{"account_number": r[0], "account_type": r[1], "balance": r[2]} for r in rows]
     return accounts
 
-@app.get("/accounts/{account_number}")
+@app.get("/{account_number}")
 def get_account(account_number: str):
     logger.info(f"Fetching details for account {account_number}")
     conn = sqlite3.connect(DB_FILE)
@@ -74,7 +74,7 @@ def get_account(account_number: str):
         raise HTTPException(status_code=404, detail="Account not found")
     return {"account_number": row[0], "user_id": row[1], "account_type": row[2], "balance": row[3]}
 
-@app.post("/accounts/{account_number}/adjust-balance")
+@app.post("/{account_number}/adjust-balance")
 def adjust_balance(account_number: str, req: BalanceUpdateRequest):
     logger.info(f"Adjusting balance for account {account_number} by {req.amount}")
     conn = sqlite3.connect(DB_FILE)
