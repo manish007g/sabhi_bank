@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,14 +41,32 @@ async def proxy(service_name: str, path: str, request: Request):
         raise HTTPException(status_code=404, detail="Service not found")
     target = f"{SERVICE_URLS[service_name]}/{path}"
     logger.info(f"Proxying request to {target}")
-    async with httpx.AsyncClient() as client:
-        resp = await client.request(
-            request.method,
-            target,
-            headers={key: value for key, value in request.headers.items() if key.lower() != 'host'},
-            params=request.query_params,
-            content=await request.body(),
-            timeout=30.0,
+
+    headers = {key: value for key, value in request.headers.items() if key.lower() != 'host'}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.request(
+                request.method,
+                target,
+                headers=headers,
+                params=request.query_params,
+                content=await request.body(),
+                timeout=30.0,
+            )
+    except httpx.RequestError as exc:
+        logger.error(f"Request to {target} failed: {exc}")
+        return Response(
+            content=json.dumps({"detail": "Unable to reach downstream service."}),
+            status_code=502,
+            media_type="application/json",
+        )
+    except Exception as exc:
+        logger.exception(f"Unexpected proxy error for {target}")
+        return Response(
+            content=json.dumps({"detail": "Gateway proxy error."}),
+            status_code=500,
+            media_type="application/json",
         )
 
     return Response(
