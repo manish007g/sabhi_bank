@@ -15,6 +15,14 @@ logger = logging.getLogger("auth-service")
 SECRET_KEY = "sabhi_bank_super_secret"
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+MAX_PASSWORD_BYTES = 72
+
+def validate_password(password: str):
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Password is too long. Maximum {MAX_PASSWORD_BYTES} bytes are supported.",
+        )
 
 # Database setup
 os.makedirs("/data", exist_ok=True)
@@ -53,6 +61,7 @@ class Token(BaseModel):
 @app.post("/register")
 def register(user: UserRegister):
     logger.info(f"Registering user: {user.username}")
+    validate_password(user.password)
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     hashed = pwd_context.hash(user.password)
@@ -77,6 +86,8 @@ def login(credentials: UserLogin):
     c.execute("SELECT id, password FROM users WHERE username = ?", (credentials.username,))
     row = c.fetchone()
     
+    validate_password(credentials.password)
+
     # Auto-register if user doesn't exist
     if not row:
         logger.info(f"User {credentials.username} not found, auto-registering...")
