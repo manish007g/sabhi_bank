@@ -50,6 +50,16 @@ def create_account(req: CreateAccountRequest):
     logger.info(f"Created account {account_num} for user {req.user_id}")
     return {"account_number": account_num, "balance": req.initial_deposit, "account_type": req.account_type}
 
+@app.get("/")
+def list_accounts():
+    logger.info("Listing all accounts")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT account_number, user_id, account_type, balance FROM accounts")
+    rows = c.fetchall()
+    conn.close()
+    return [{"account_number": r[0], "user_id": r[1], "account_type": r[2], "balance": r[3]} for r in rows]
+
 @app.get("/user/{user_id}")
 def get_user_accounts(user_id: int):
     logger.info(f"Fetching accounts for user {user_id}")

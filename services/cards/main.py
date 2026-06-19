@@ -32,6 +32,9 @@ class CardCreateRequest(BaseModel):
     user_id: int
     limit_amount: float
 
+class CardStatusUpdateRequest(BaseModel):
+    status: str
+
 @app.post("/cards")
 def create_card(req: CardCreateRequest):
     logger.info(f"Creating card for user {req.user_id}")
@@ -46,6 +49,30 @@ def create_card(req: CardCreateRequest):
     conn.commit()
     conn.close()
     return {"card_number": card_num, "status": "active", "limit_amount": req.limit_amount}
+
+@app.get("/cards")
+def list_cards():
+    logger.info("Listing all cards")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT card_number, user_id, status, limit_amount FROM cards")
+    rows = c.fetchall()
+    conn.close()
+    return [{"card_number": r[0], "user_id": r[1], "status": r[2], "limit_amount": r[3]} for r in rows]
+
+@app.put("/cards/{card_number}/status")
+def update_card_status(card_number: str, req: CardStatusUpdateRequest):
+    logger.info(f"Updating status for card {card_number} to {req.status}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT card_number FROM cards WHERE card_number = ?", (card_number,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Card not found")
+    c.execute("UPDATE cards SET status = ? WHERE card_number = ?", (req.status, card_number))
+    conn.commit()
+    conn.close()
+    return {"card_number": card_number, "status": req.status}
 
 @app.get("/cards/user/{user_id}")
 def get_user_cards(user_id: int):

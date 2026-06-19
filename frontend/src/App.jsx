@@ -2,17 +2,12 @@ import React, { useEffect, useState } from 'react';
 import Login from './components/Login.jsx';
 import UserManagement from './components/UserManagement.jsx';
 import TransactionMonitoring from './components/TransactionMonitoring.jsx';
-import AuditLogs from './components/AuditLogs.jsx';
-import AccountList from './components/AccountList.jsx';
-import TransferForm from './components/TransferForm.jsx';
 import './styles.css';
-import './otel.js'; // initialize OpenTelemetry
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [gatewayHealth, setGatewayHealth] = useState(null);
+  const [activeTab, setActiveTab] = useState('users');
 
   useEffect(() => {
     // Check if user is already logged in
@@ -22,21 +17,12 @@ function App() {
       setIsLoggedIn(true);
       setUsername(savedUsername);
     }
-
-    // Health check
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-    const port = 8000;
-    fetch(`${protocol}//${host}:${port}/health`)
-      .then((r) => r.json())
-      .then((data) => setGatewayHealth(data.status))
-      .catch(() => setGatewayHealth('offline'));
   }, []);
 
   const handleLoginSuccess = (user, token) => {
     setUsername(user);
     setIsLoggedIn(true);
-    setActiveTab('dashboard');
+    setActiveTab('users');
   };
 
   const handleLogout = () => {
@@ -44,25 +30,17 @@ function App() {
     localStorage.removeItem('username');
     setIsLoggedIn(false);
     setUsername('');
-    setActiveTab('dashboard');
+    setActiveTab('users');
   };
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <div className="welcome-box"><h3>Welcome, {username}</h3><p>Select a service from the menu.</p></div>;
       case 'users':
         return <UserManagement />;
       case 'transactions':
         return <TransactionMonitoring />;
-      case 'audit':
-        return <AuditLogs />;
-      case 'accounts':
-        return <AccountList />;
-      case 'transfer':
-        return <TransferForm />;
       default:
-        return <div>Select a tab</div>;
+        return <UserManagement />;
     }
   };
 
@@ -71,60 +49,46 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      <header className="app-header glass">
-        <div className="header-left">
-          <h1>🏦 Sabhi Bank</h1>
-          <span className="user-badge">Employee: {username}</span>
-        </div>
-        <div className="header-right">
-          <span className={`status-badge ${gatewayHealth === 'ok' ? 'online' : 'offline'}`}>
-            {gatewayHealth === 'ok' ? '● Online' : '● Offline'}
+    <div className="app-container bg-[#08090d] text-gray-100 min-h-screen font-sans flex flex-col">
+      <header className="app-header glass px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+            🏦 Sabhi Bank Employee Portal
+          </h1>
+          <span className="text-xs px-2.5 py-1 bg-blue-950/60 border border-blue-900/40 text-blue-300 rounded-full font-semibold">
+            Staff: {username}
           </span>
-          <button className="logout-button" onClick={handleLogout}>Logout</button>
+        </div>
+        <div>
+          <button 
+            className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-gray-300 rounded-lg text-xs font-semibold transition"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
         </div>
       </header>
 
-      <nav className="app-nav glass">
-        <button 
-          className={activeTab === 'dashboard' ? 'active' : ''} 
-          onClick={() => setActiveTab('dashboard')}
-        >
-          📊 Dashboard
-        </button>
-        <button 
-          className={activeTab === 'users' ? 'active' : ''} 
-          onClick={() => setActiveTab('users')}
-        >
-          👥 Users
-        </button>
-        <button 
-          className={activeTab === 'transactions' ? 'active' : ''} 
-          onClick={() => setActiveTab('transactions')}
-        >
-          💳 Transactions
-        </button>
-        <button 
-          className={activeTab === 'audit' ? 'active' : ''} 
-          onClick={() => setActiveTab('audit')}
-        >
-          📋 Audit Logs
-        </button>
-        <button 
-          className={activeTab === 'accounts' ? 'active' : ''} 
-          onClick={() => setActiveTab('accounts')}
-        >
-          🏧 Accounts
-        </button>
-        <button 
-          className={activeTab === 'transfer' ? 'active' : ''} 
-          onClick={() => setActiveTab('transfer')}
-        >
-          💰 Transfers
-        </button>
+      <nav className="app-nav glass border-b border-slate-800/50 bg-slate-950/20 px-6 py-1 flex gap-2">
+        {[
+          { id: 'users', label: '👥 User Accounts & CRUD' },
+          { id: 'transactions', label: '💳 Ledger & Transfer' }
+        ].map(t => (
+          <button 
+            key={t.id}
+            className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+              activeTab === t.id 
+                ? 'border-blue-500 text-blue-400 bg-blue-500/5' 
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`} 
+            onClick={() => setActiveTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </nav>
 
-      <main className="app-main glass">
+      <main className="app-main flex-1 p-6 overflow-hidden">
         {renderContent()}
       </main>
     </div>

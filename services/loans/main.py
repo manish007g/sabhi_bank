@@ -34,6 +34,9 @@ class LoanRequest(BaseModel):
     amount: float
     interest_rate: float
 
+class LoanStatusUpdateRequest(BaseModel):
+    status: str
+
 @app.post("/loans")
 def create_loan(req: LoanRequest):
     logger.info(f"Creating loan for user {req.user_id}")
@@ -48,6 +51,58 @@ def create_loan(req: LoanRequest):
     conn.commit()
     conn.close()
     return {"loan_id": loan_id, "status": "pending"}
+
+@app.get("/loans")
+def list_loans():
+    logger.info("Listing all loans")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT loan_id, user_id, amount, interest_rate, status FROM loans")
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "loan_id": r[0],
+            "user_id": r[1],
+            "amount": r[2],
+            "interest_rate": r[3],
+            "status": r[4]
+        }
+        for r in rows
+    ]
+
+@app.get("/loans/user/{user_id}")
+def get_user_loans(user_id: int):
+    logger.info(f"Fetching loans for user {user_id}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT loan_id, user_id, amount, interest_rate, status FROM loans WHERE user_id = ?", (user_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "loan_id": r[0],
+            "user_id": r[1],
+            "amount": r[2],
+            "interest_rate": r[3],
+            "status": r[4]
+        }
+        for r in rows
+    ]
+
+@app.put("/loans/{loan_id}/status")
+def update_loan_status(loan_id: str, req: LoanStatusUpdateRequest):
+    logger.info(f"Updating loan status for {loan_id} to {req.status}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT loan_id FROM loans WHERE loan_id = ?", (loan_id,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Loan not found")
+    c.execute("UPDATE loans SET status = ? WHERE loan_id = ?", (req.status, loan_id))
+    conn.commit()
+    conn.close()
+    return {"loan_id": loan_id, "status": req.status}
 
 @app.get("/loans/{loan_id}")
 def get_loan(loan_id: str):

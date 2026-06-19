@@ -53,6 +53,48 @@ def create_fd(req: FDCreateRequest):
     conn.close()
     return {"fd_id": fd_id, "status": "active"}
 
+@app.get("/fds")
+def list_fds():
+    logger.info("Listing all FDs")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT fd_id, user_id, amount, start_date, maturity_date, interest_rate, status FROM fds")
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "fd_id": r[0],
+            "user_id": r[1],
+            "amount": r[2],
+            "start_date": r[3],
+            "maturity_date": r[4],
+            "interest_rate": r[5],
+            "status": r[6]
+        }
+        for r in rows
+    ]
+
+@app.get("/fds/user/{user_id}")
+def get_user_fds(user_id: int):
+    logger.info(f"Fetching FDs for user {user_id}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT fd_id, user_id, amount, start_date, maturity_date, interest_rate, status FROM fds WHERE user_id = ?", (user_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "fd_id": r[0],
+            "user_id": r[1],
+            "amount": r[2],
+            "start_date": r[3],
+            "maturity_date": r[4],
+            "interest_rate": r[5],
+            "status": r[6]
+        }
+        for r in rows
+    ]
+
 @app.get("/fds/{fd_id}")
 def get_fd(fd_id: str):
     conn = sqlite3.connect(DB_FILE)

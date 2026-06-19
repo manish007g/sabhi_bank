@@ -112,6 +112,30 @@ async def create_transaction(req: TransactionRequest):
         logger.info(f"Transaction {tx_id} successfully recorded.")
         return {"message": "Transaction successful", "transaction_id": tx_id}
 
+@app.get("/transactions")
+def list_transactions():
+    logger.info("Listing all transactions")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, from_account, to_account, amount, type, timestamp 
+        FROM transactions 
+        ORDER BY timestamp DESC
+    """)
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "id": r[0],
+            "from_account": r[1],
+            "to_account": r[2],
+            "amount": r[3],
+            "type": r[4],
+            "timestamp": r[5]
+        }
+        for r in rows
+    ]
+
 @app.get("/transactions/account/{account_number}")
 def get_account_transactions(account_number: str):
     logger.info(f"Fetching transactions for account {account_number}")

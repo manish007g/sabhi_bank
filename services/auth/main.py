@@ -36,9 +36,31 @@ def init_db():
             username TEXT UNIQUE,
             password TEXT,
             email TEXT,
-            full_name TEXT
+            full_name TEXT,
+            phone TEXT,
+            address TEXT,
+            kyc_status TEXT DEFAULT 'Pending',
+            status TEXT DEFAULT 'Active',
+            occupation TEXT,
+            date_of_birth TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Add columns individually if table exists
+    columns = [
+        ("phone", "TEXT"),
+        ("address", "TEXT"),
+        ("kyc_status", "TEXT DEFAULT 'Pending'"),
+        ("status", "TEXT DEFAULT 'Active'"),
+        ("occupation", "TEXT"),
+        ("date_of_birth", "TEXT"),
+        ("created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+    ]
+    for col_name, col_type in columns:
+        try:
+            c.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass
     conn.commit()
     conn.close()
 
@@ -49,6 +71,22 @@ class UserRegister(BaseModel):
     password: str
     email: str
     full_name: str
+    phone: str = None
+    address: str = None
+    kyc_status: str = "Pending"
+    status: str = "Active"
+    occupation: str = None
+    date_of_birth: str = None
+
+class UserUpdate(BaseModel):
+    full_name: str
+    email: str
+    phone: str = None
+    address: str = None
+    kyc_status: str = "Pending"
+    status: str = "Active"
+    occupation: str = None
+    date_of_birth: str = None
 
 class UserLogin(BaseModel):
     username: str
@@ -58,6 +96,84 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+@app.get("/users")
+def get_users(search: str = None):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    if search:
+        c.execute("""
+            SELECT id, username, email, full_name, phone, address, kyc_status, status, occupation, date_of_birth, created_at 
+            FROM users 
+            WHERE username LIKE ? OR full_name LIKE ? OR email LIKE ?
+        """, (f"%{search}%", f"%{search}%", f"%{search}%"))
+    else:
+        c.execute("""
+            SELECT id, username, email, full_name, phone, address, kyc_status, status, occupation, date_of_birth, created_at 
+            FROM users
+        """)
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "id": r[0],
+            "username": r[1],
+            "email": r[2],
+            "full_name": r[3],
+            "phone": r[4],
+            "address": r[5],
+            "kyc_status": r[6],
+            "status": r[7],
+            "occupation": r[8],
+            "date_of_birth": r[9],
+            "created_at": r[10]
+        }
+        for r in rows
+    ]
+
+@app.get("/users/{user_id}")
+def get_user(user_id: int):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, username, email, full_name, phone, address, kyc_status, status, occupation, date_of_birth, created_at 
+        FROM users WHERE id = ?
+    """, (user_id,))
+    r = c.fetchone()
+    conn.close()
+    if not r:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": r[0],
+        "username": r[1],
+        "email": r[2],
+        "full_name": r[3],
+        "phone": r[4],
+        "address": r[5],
+        "kyc_status": r[6],
+        "status": r[7],
+        "occupation": r[8],
+        "date_of_birth": r[9],
+        "created_at": r[10]
+    }
+
+@app.put("/users/{user_id}")
+def update_user(user_id: int, req: UserUpdate):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    c.execute("""
+        UPDATE users 
+        SET full_name = ?, email = ?, phone = ?, address = ?, kyc_status = ?, status = ?, occupation = ?, date_of_birth = ?
+        WHERE id = ?
+    """, (req.full_name, req.email, req.phone, req.address, req.kyc_status, req.status, req.occupation, req.date_of_birth, user_id))
+    conn.commit()
+    conn.close()
+    logger.info(f"Updated profile for user {user_id}")
+    return {"message": "User updated successfully"}
+
 @app.post("/register")
 def register(user: UserRegister):
     logger.info(f"Registering user: {user.username}")
@@ -66,8 +182,10 @@ def register(user: UserRegister):
     c = conn.cursor()
     hashed = pwd_context.hash(user.password)
     try:
-        c.execute("INSERT INTO users (username, password, email, full_name) VALUES (?, ?, ?, ?)",
-                  (user.username, hashed, user.email, user.full_name))
+        c.execute("""
+            INSERT INTO users (username, password, email, full_name, phone, address, kyc_status, status, occupation, date_of_birth) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user.username, hashed, user.email, user.full_name, user.phone, user.address, user.kyc_status, user.status, user.occupation, user.date_of_birth))
         conn.commit()
         user_id = c.lastrowid
     except sqlite3.IntegrityError:
